@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Ozone City Express - Climate Action Game</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="description" content="Educational climate action game teaching sustainable delivery optimization" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ozone City Express" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <style>
+      /* Prevent zoom on double tap */
+      * { touch-action: manipulation; }
+      /* Mobile-specific styles */
+      @media (max-width: 768px) {
+        body { font-size: 16px; -webkit-text-size-adjust: 100%; }
+        button { min-height: 44px; min-width: 44px; }
+        input, select, textarea { font-size: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+  </html>
