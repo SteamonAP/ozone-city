@@ -9,7 +9,7 @@ import { SummaryScene as SummaryOverlay } from '../scenes/SummaryScene';
 import { useGameState } from '../game/gameState';
 
 export const AppShell: React.FC = () => {
-	const { startNewDay, tutorialDone, setTutorialDone, parcels, vehicles, recordTrip } = useGameState();
+	const { startNewDay, tutorialDone, setTutorialDone, parcels, vehicles, recordTrip, dispatchVehicle, isDayComplete, getUndispatchedVehicles } = useGameState();
 	const [stage, setStage] = useState<'menu'|'tutorial'|'depot'|'route'|'summary'>('menu');
 	const [currentVehicleId, setCurrentVehicleId] = useState<string | null>(null);
 
@@ -57,7 +57,11 @@ export const AppShell: React.FC = () => {
 			)}
 
 			{stage === 'depot' && (
-				<DepotOverlay onDispatch={(vehId) => { setCurrentVehicleId(vehId); setStage('route'); }} />
+				<DepotOverlay onDispatch={(vehId) => { 
+					dispatchVehicle(vehId);
+					setCurrentVehicleId(vehId); 
+					setStage('route'); 
+				}} />
 			)}
 
 			{stage === 'route' && currentVehicleId && (
@@ -66,7 +70,15 @@ export const AppShell: React.FC = () => {
 					destinations={activeDestinations}
 					onSubmit={(pathLength) => {
 						recordTrip(currentVehicleId, pathLength);
-						setStage('summary');
+						
+						// Check if day is complete or if there are more vehicles to dispatch
+						if (isDayComplete()) {
+							setStage('summary');
+						} else {
+							// Return to depot to dispatch next vehicle
+							setCurrentVehicleId(null);
+							setStage('depot');
+						}
 					}}
 				/>
 			)}

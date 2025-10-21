@@ -47,39 +47,49 @@ function getSDGMessage(type: string, urgency: string) {
 }
 
 export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> = ({ onDispatch }) => {
-	const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle } = useGameState();
+	const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle, dispatchedVehicles } = useGameState();
 	const [hint, setHint] = useState<Record<string, string[]> | null>(null);
+	const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
 
 	const parcelById = useMemo(() => new Map(parcels.map(p => [p.id, p])), [parcels]);
 	const assignedSet = useMemo(() => new Set(vehicles.flatMap(v => v.loadedParcelIds)), [vehicles]);
 	const unassignedParcels = useMemo(() => parcels.filter(p => !assignedSet.has(p.id)), [parcels, assignedSet]);
 
+	// Mobile-friendly tap handlers
+	const handleParcelTap = (parcelId: string) => {
+		setSelectedParcelId(selectedParcelId === parcelId ? null : parcelId);
+	};
+
+	const handleVehicleTap = (vehicleId: string) => {
+		if (!selectedParcelId) return;
+		
+		const vehicle = vehicles.find(v => v.id === vehicleId);
+		if (!vehicle) return;
+		
+		// Check capacity
+		const used = vehicle.loadedParcelIds.reduce((sum, id) => sum + (parcelById.get(id)?.sizeUnits ?? 0), 0);
+		const parcel = parcelById.get(selectedParcelId);
+		if (!parcel) return;
+		
+		if (used + parcel.sizeUnits <= vehicle.capacity) {
+			assignParcelToVehicle(selectedParcelId, vehicleId);
+			setSelectedParcelId(null);
+		}
+	};
+
 	function vehicleLoadUsed(v: Vehicle) {
 		return v.loadedParcelIds.reduce((sum, id) => sum + (parcelById.get(id)?.sizeUnits ?? 0), 0);
 	}
 
-	function canDrop(v: Vehicle, parcelId: string) {
-		const p = parcelById.get(parcelId);
-		if (!p) return false;
-		return vehicleLoadUsed(v) + p.sizeUnits <= v.capacity;
-	}
-
 	function suggest() {
-		const s = suggestOptimalPack(parcels, vehicles);
-		setHint(s.assignment);
+    const suggestion = suggestOptimalPack(parcels, vehicles);
+    setHint(suggestion.assignment);
 	}
 
 	function applySuggestion() {
 		if (!hint) return;
-		// clear existing loads
-		for (const v of vehicles) {
-			for (const pid of [...v.loadedParcelIds]) {
-				removeParcelFromVehicle(pid, v.id);
-			}
-		}
-		// apply hint
-		for (const vid of Object.keys(hint)) {
-			for (const pid of hint[vid]) assignParcelToVehicle(pid, vid);
+		for (const [vid, pids] of Object.entries(hint)) {
+			for (const pid of pids) assignParcelToVehicle(pid, vid);
 		}
 		setHint(null);
 	}
@@ -131,17 +141,19 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 				<div style={{ display: 'grid', gap: 12, maxHeight: window.innerWidth <= 768 ? '300px' : 'none', overflowY: 'auto' }}>
 					{unassignedParcels.map((p) => (
 						<div key={p.id}
-							draggable
-							onDragStart={(e) => e.dataTransfer?.setData('text/plain', p.id)}
+							onClick={() => handleParcelTap(p.id)}
 							style={{ 
 								display: 'flex', 
 								alignItems: 'center', 
 								gap: 12, 
-								background: '#111827', 
+								background: selectedParcelId === p.id ? '#1f2937' : '#111827', 
 								padding: window.innerWidth <= 768 ? '16px' : '12px', 
 								borderRadius: 10, 
-								border: `2px solid ${p.urgency === 'urgent' ? '#ef4444' : p.urgency === 'normal' ? '#fbbf24' : '#22c55e'}`,
-								minHeight: window.innerWidth <= 768 ? '80px' : 'auto'
+								border: `2px solid ${selectedParcelId === p.id ? '#3b82f6' : p.urgency === 'urgent' ? '#ef4444' : p.urgency === 'normal' ? '#fbbf24' : '#22c55e'}`,
+								minHeight: window.innerWidth <= 768 ? '80px' : 'auto',
+								cursor: 'pointer',
+								transform: selectedParcelId === p.id ? 'scale(1.02)' : 'scale(1)',
+								transition: 'all 0.2s ease'
 							}}>
 							<img src={parcelIcon(p)} alt={`Parcel ${p.id}`} width={window.innerWidth <= 768 ? 48 : 36} height={window.innerWidth <= 768 ? 48 : 36} />
 							<img src={destinationIcon(p.destinationType)} alt={p.destinationType} width={window.innerWidth <= 768 ? 32 : 24} height={window.innerWidth <= 768 ? 32 : 24} />
@@ -149,6 +161,11 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 								<div style={{ fontSize: window.innerWidth <= 768 ? '16px' : '14px' }}><strong>Parcel {p.id}</strong> — {p.destinationType}</div>
 								<div style={{ fontSize: window.innerWidth <= 768 ? '12px' : '11px', opacity: 0.8, marginTop: 2 }}>{getSDGMessage(p.destinationType, p.urgency)}</div>
 								<div style={{ fontSize: window.innerWidth <= 768 ? '11px' : '10px', opacity: 0.6, marginTop: 2 }}>Priority: {p.urgency} • Size: {p.sizeUnits}</div>
+								{selectedParcelId === p.id && (
+									<div style={{ fontSize: window.innerWidth <= 768 ? '12px' : '10px', color: '#3b82f6', marginTop: 4 }}>
+										👆 Tap a vehicle to assign
+									</div>
+								)}
 							</div>
 						</div>
 					))}
@@ -156,53 +173,82 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 				</div>
 			</div>
 			<div>
-				<h3 style={{ marginTop: 0 }}>Vehicles</h3>
+				<h3 style={{ marginTop: 0 }}>🚛 Vehicles</h3>
 				<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
 					{vehicles.map((v) => {
 						const used = v.loadedParcelIds.reduce((sum, id) => sum + (parcelById.get(id)?.sizeUnits ?? 0), 0);
-						const pct = Math.min(100, Math.round((used / v.capacity) * 100));
-						const hintList = hint?.[v.id] ?? [];
+						const canDispatch = used > 0 && !dispatchedVehicles.has(v.id);
+						const isDispatched = dispatchedVehicles.has(v.id);
+						const hintForVehicle = hint?.[v.id] || [];
 						return (
-							<div key={v.id}
-								onDragOver={(e) => e.preventDefault()}
-								onDrop={(e) => {
-									const pid = e.dataTransfer?.getData('text/plain');
-									if (!pid) return;
-									if (canDrop(v, pid)) assignParcelToVehicle(pid, v.id);
-									else {
-										const p = parcelById.get(pid);
-										if (p) alert(`Cannot load parcel ${p.id}: over capacity`);
-									}
-								}}
-								style={{ background: '#0b1020', color: '#fff', borderRadius: 12, padding: 12, minWidth: 300 }}>
-								<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-									<img src={vehicleIcon(v)} alt={v.type} width={64} height={32} />
-									<div style={{ flex: 1 }}>
-										<strong>{v.type.toUpperCase()}</strong>
-										<div style={{ fontSize: 12, opacity: 0.9 }}>Capacity {used}/{v.capacity}</div>
-										<div style={{ marginTop: 6, height: 8, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
-											<div style={{ width: `${pct}%`, height: '100%', background: '#22c55e' }} />
-										</div>
+							<div key={v.id} 
+								onClick={() => handleVehicleTap(v.id)}
+								style={{ 
+									background: isDispatched ? '#374151' : selectedParcelId ? '#1f2937' : '#111827', 
+									padding: 16, 
+									borderRadius: 12, 
+									minWidth: 200,
+									cursor: selectedParcelId ? 'pointer' : 'default',
+									border: selectedParcelId ? '2px solid #3b82f6' : '2px solid transparent',
+									opacity: isDispatched ? 0.6 : 1,
+									transition: 'all 0.2s ease'
+								}}>
+								<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+									<img src={vehicleIcon(v)} alt={v.id} width={48} height={48} />
+									<div>
+										<div><strong>{v.id.toUpperCase()}</strong></div>
+										<div style={{ opacity: 0.8 }}>Capacity {used}/{v.capacity}</div>
+										{isDispatched && <div style={{ fontSize: 12, color: '#22c55e' }}>✅ Dispatched</div>}
 									</div>
 								</div>
-								{hintList.length > 0 && (
-									<div style={{ marginTop: 8, padding: 8, border: '1px dashed #22c55e', borderRadius: 8 }}>
-										<div style={{ marginBottom: 6, color: '#22c55e' }}>Suggested: {hintList.join(', ')}</div>
-									</div>
-								)}
-								<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+								<div style={{ height: 8, background: '#1f2937', borderRadius: 6, overflow: 'hidden', marginBottom: 12 }}>
+									<div style={{ width: `${(used / v.capacity) * 100}%`, height: '100%', background: used >= v.capacity ? '#ef4444' : '#22c55e' }} />
+								</div>
+								<div style={{ marginBottom: 12 }}>
 									{v.loadedParcelIds.map((pid) => {
-										const p = parcelById.get(pid)!;
-										return (
-											<button key={pid} onClick={() => removeParcelFromVehicle(pid, v.id)} title="Remove from vehicle" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#111827', padding: '6px 8px', borderRadius: 8, border: '1px solid #1f2937', color: '#fff' }}>
-												<img src={parcelIcon(p)} alt="parcel" width={20} height={20} /> {p.id}
-											</button>
-										);
+										const p = parcelById.get(pid);
+										return p ? (
+											<div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+												<img src={parcelIcon(p)} alt={pid} width={24} height={24} />
+												<span style={{ fontSize: 12 }}>{pid} ({p.sizeUnits})</span>
+												{!isDispatched && (
+													<button onClick={(e) => { e.stopPropagation(); removeParcelFromVehicle(pid, v.id); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>×</button>
+												)}
+											</div>
+										) : null;
 									})}
 								</div>
-								<div style={{ marginTop: 12 }}>
-									<button onClick={() => onDispatch(v.id)} disabled={v.loadedParcelIds.length === 0} style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: v.loadedParcelIds.length ? '#22c55e' : '#6b7280', color: '#0b1020', fontWeight: 700 }}>Dispatch</button>
-								</div>
+								{hintForVehicle.length > 0 && !isDispatched && (
+									<div style={{ marginBottom: 12, padding: 8, background: '#0b1020', borderRadius: 6 }}>
+										<div style={{ fontSize: 12, color: '#22c55e', marginBottom: 4 }}>Suggested:</div>
+										{hintForVehicle.map((pid) => {
+											const p = parcelById.get(pid);
+											return p ? (
+												<div key={pid} style={{ fontSize: 11, opacity: 0.8 }}>{pid} ({p.sizeUnits})</div>
+											) : null;
+										})}
+									</div>
+								)}
+								{selectedParcelId && !isDispatched && (
+									<div style={{ marginBottom: 12, fontSize: 12, color: '#3b82f6', textAlign: 'center' }}>
+										👆 Tap to assign selected parcel
+									</div>
+								)}
+								<button 
+									onClick={(e) => { e.stopPropagation(); canDispatch && onDispatch(v.id); }} 
+									disabled={!canDispatch} 
+									style={{ 
+										padding: '8px 16px', 
+										borderRadius: 8, 
+										border: 'none', 
+										background: canDispatch ? '#22c55e' : '#6b7280', 
+										color: '#0b1020', 
+										fontWeight: 700, 
+										cursor: canDispatch ? 'pointer' : 'not-allowed', 
+										width: '100%' 
+									}}>
+									{isDispatched ? 'Dispatched' : 'Dispatch'}
+								</button>
 							</div>
 						);
 					})}
@@ -211,4 +257,3 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 		</div>
 	);
 };
-

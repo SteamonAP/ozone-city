@@ -1,4 +1,5 @@
 import React from 'react';
+import logoIcon from '../assets/sprites/logo.svg';
 
 interface MainMenuProps {
 	onStart: () => void;
@@ -39,12 +40,17 @@ export const MainMenuScene: React.FC<MainMenuProps> = ({ onStart, onTutorial, on
 				}`}
 			</style>
 			<div className="menu-container" style={{ textAlign: 'center', padding: 24, background: 'rgba(11,16,32,0.5)', borderRadius: 16, backdropFilter: 'blur(6px)', maxWidth: 400, width: '100%' }}>
-				<h1 className="menu-title" style={{ marginBottom: 16, fontSize: 32 }}>🌍 Ozone City Express</h1>
+				<div style={{ marginBottom: 20 }}>
+					<img src={logoIcon} alt="Ozone City Express Logo" style={{ width: '100%', maxWidth: 300, height: 'auto' }} />
+				</div>
 				<p style={{ marginTop: 0, marginBottom: 20, opacity: 0.95, fontSize: 16 }}>Climate Action Game: Plan efficient delivery routes to reduce emissions!</p>
 				<div style={{ display: 'grid', gap: 16 }}>
 					<button aria-label="Start Game" onClick={onStart} className="menu-btn" style={btn}>🚀 START GAME</button>
 					<button aria-label="Tutorial" onClick={onTutorial} className="menu-btn" style={btnAlt}>📚 TUTORIAL</button>
-					<button aria-label="Quit" onClick={onQuit} className="menu-btn" style={btnAlt}>👋 QUIT</button>
+					<button aria-label="Quit" onClick={() => {
+						// For web apps, show a thank you message instead of trying to close
+						alert('Thanks for playing Ozone City Express! 🌍\n\nHelp us build a sustainable future through efficient delivery planning!');
+					}} className="menu-btn" style={btnAlt}>👋 QUIT</button>
 				</div>
 			</div>
 		</div>

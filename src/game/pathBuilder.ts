@@ -96,13 +96,17 @@ export function isConnected(network: PathNetwork, start: Point, targets: Point[]
     startKey: pointKey(start),
     visited: Array.from(visited),
     targets: targets.map(t => pointKey(t)),
-    segments: network.segments.map(s => `${pointKey(s.from)}->${pointKey(s.to)}`)
+    segments: network.segments.map(s => `${pointKey(s.from)}->${pointKey(s.to)}`),
+    networkCells: Array.from(network.cells)
   });
   
   const connected = targets.filter(target => {
     const targetKey = pointKey(target);
-    const isConnected = visited.has(targetKey);
-    console.log(`Target ${targetKey}: ${isConnected ? 'CONNECTED' : 'NOT CONNECTED'}`);
+    // A destination is connected if:
+    // 1. It's directly visited by BFS from depot, OR
+    // 2. It's part of the path network cells (even if not in visited due to BFS starting from depot)
+    const isConnected = visited.has(targetKey) || network.cells.has(targetKey);
+    console.log(`Target ${targetKey}: ${isConnected ? 'CONNECTED' : 'NOT CONNECTED'} (visited: ${visited.has(targetKey)}, inNetwork: ${network.cells.has(targetKey)})`);
     return isConnected;
   });
   

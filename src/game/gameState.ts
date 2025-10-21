@@ -20,13 +20,17 @@ export interface GameState {
   currentPath: PathNetwork;
   obstacles: Obstacle[];
   maxPathSegments: number;
+  dispatchedVehicles: Set<string>; // Track which vehicles have been dispatched
   startNewDay: (seed?: number) => void;
   setTutorialDone: () => void;
   assignParcelToVehicle: (parcelId: string, vehicleId: string) => void;
   removeParcelFromVehicle: (parcelId: string, vehicleId: string) => void;
+  dispatchVehicle: (vehicleId: string) => void;
   recordTrip: (vehicleId: string, pathLength: number) => void;
   setCurrentPath: (path: PathNetwork) => void;
   checkConnectivity: (destinations: { x: number; y: number }[]) => { connected: number; total: number; solved: boolean };
+  isDayComplete: () => boolean;
+  getUndispatchedVehicles: () => Vehicle[];
 }
 
 function sumLoadForVehicle(veh: Vehicle, parcels: Parcel[]): number {
@@ -49,6 +53,7 @@ export const useGameState = create<GameState>((set, get) => ({
   currentPath: { segments: [], cells: new Set() },
   obstacles: [],
   maxPathSegments: 25,
+  dispatchedVehicles: new Set(),
   startNewDay: (seed = Math.floor(Math.random() * 1_000_000)) => {
     // Placeholder parcel generation; will be replaced by generator.ts
     const parcels: Parcel[] = Array.from({ length: 5 }).map((_, i) => {
@@ -73,7 +78,8 @@ export const useGameState = create<GameState>((set, get) => ({
       vehicles: get().vehicles.map(v => ({ ...v, loadedParcelIds: [] })), 
       currentPath: { segments: [], cells: new Set() },
       obstacles,
-      maxPathSegments: maxSegments
+      maxPathSegments: maxSegments,
+      dispatchedVehicles: new Set()
     });
   },
   setTutorialDone: () => set({ tutorialDone: true }),
@@ -100,16 +106,27 @@ export const useGameState = create<GameState>((set, get) => ({
   removeParcelFromVehicle: (parcelId, vehicleId) => set((state) => ({
     vehicles: state.vehicles.map((v) => v.id === vehicleId ? { ...v, loadedParcelIds: v.loadedParcelIds.filter(id => id !== parcelId) } : v)
   })),
+  dispatchVehicle: (vehicleId) => set((state) => {
+    const vehicle = state.vehicles.find(v => v.id === vehicleId);
+    if (!vehicle || vehicle.loadedParcelIds.length === 0) return {} as any;
+    
+    const newDispatched = new Set(state.dispatchedVehicles);
+    newDispatched.add(vehicleId);
+    
+    return { dispatchedVehicles: newDispatched };
+  }),
   recordTrip: (vehicleId, pathLength) => set((state) => {
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) return {} as any;
     const rate = VEHICLE_RATES[vehicle.type as VehicleType];
+    
+    // Clear the path for next trip
     return {
       totals: {
         time: state.totals.time + pathLength * rate.timePerTile,
         emissions: state.totals.emissions + pathLength * rate.emissionPerTile
       },
-      vehicles: state.vehicles.map((v) => v.id === vehicleId ? { ...v, loadedParcelIds: [] } : v)
+      currentPath: { segments: [], cells: new Set() }
     };
   }),
   setCurrentPath: (path) => set({ currentPath: path }),
@@ -121,5 +138,22 @@ export const useGameState = create<GameState>((set, get) => ({
       total: result.total,
       solved: result.connected.length === result.total && result.total > 0
     };
+  },
+  isDayComplete: () => {
+    const state = get();
+    // Day is complete when all parcels have been assigned to vehicles and all vehicles have been dispatched
+    const allParcelsAssigned = state.parcels.every(p => 
+      state.vehicles.some(v => v.loadedParcelIds.includes(p.id))
+    );
+    const allVehiclesDispatched = state.vehicles.every(v => 
+      v.loadedParcelIds.length === 0 || state.dispatchedVehicles.has(v.id)
+    );
+    return allParcelsAssigned && allVehiclesDispatched;
+  },
+  getUndispatchedVehicles: () => {
+    const state = get();
+    return state.vehicles.filter(v => 
+      v.loadedParcelIds.length > 0 && !state.dispatchedVehicles.has(v.id)
+    );
   }
 }));
