@@ -141,14 +141,12 @@ export const useGameState = create<GameState>((set, get) => ({
   },
   isDayComplete: () => {
     const state = get();
-    // Day is complete when all parcels have been assigned to vehicles and all vehicles have been dispatched
-    const allParcelsAssigned = state.parcels.every(p => 
-      state.vehicles.some(v => v.loadedParcelIds.includes(p.id))
-    );
-    const allVehiclesDispatched = state.vehicles.every(v => 
-      v.loadedParcelIds.length === 0 || state.dispatchedVehicles.has(v.id)
-    );
-    return allParcelsAssigned && allVehiclesDispatched;
+    // Day is complete when all parcels have been delivered (assigned AND dispatched)
+    const allParcelsDelivered = state.parcels.every(p => {
+      const assignedVehicle = state.vehicles.find(v => v.loadedParcelIds.includes(p.id));
+      return assignedVehicle && state.dispatchedVehicles.has(assignedVehicle.id);
+    });
+    return allParcelsDelivered;
   },
   getUndispatchedVehicles: () => {
     const state = get();

@@ -47,7 +47,7 @@ function getSDGMessage(type: string, urgency: string) {
 }
 
 export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> = ({ onDispatch }) => {
-	const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle, dispatchedVehicles } = useGameState();
+	const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle, dispatchedVehicles, startNewDay } = useGameState();
 	const [hint, setHint] = useState<Record<string, string[]> | null>(null);
 	const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
 
@@ -135,6 +135,16 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 						minHeight: window.innerWidth <= 768 ? '48px' : 'auto',
 						fontSize: window.innerWidth <= 768 ? '14px' : '12px'
 					}}>Apply</button>
+					<button onClick={() => startNewDay()} style={{ 
+						padding: window.innerWidth <= 768 ? '12px 16px' : '8px 12px', 
+						borderRadius: 8, 
+						border: 'none', 
+						background: '#ef4444', 
+						color: '#fff', 
+						fontWeight: 700,
+						minHeight: window.innerWidth <= 768 ? '48px' : 'auto',
+						fontSize: window.innerWidth <= 768 ? '14px' : '12px'
+					}}>🔄 Reset Day</button>
 				</div>
 				
 				<h4 style={{ marginBottom: 12, fontSize: window.innerWidth <= 768 ? '16px' : '18px' }}>📦 Available Deliveries</h4>
