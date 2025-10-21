@@ -8,7 +8,7 @@ export type TileKey = 'straight' | 'curve' | 't' | 'cross';
 // - cross: "cross", "intersection"
 const discovered: Record<string, string> = (() => {
   // Vite will include any matching files that exist; missing ones are just absent
-  const files = import.meta.glob('../assets/tiles/*.{png,svg,jpg,jpeg}', { eager: true, as: 'url' }) as Record<string, string>;
+  const files = import.meta.glob('../assets/tiles/*.{png,svg,jpg,jpeg}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
   const entries = Object.entries(files).map(([path, url]) => ({ path: path.toLowerCase(), url }));
   const find = (...hints: string[]) => entries.find(e => hints.every(h => e.path.includes(h)))?.url;
   return {
