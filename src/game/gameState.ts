@@ -4,6 +4,8 @@ import { VEHICLE_RATES, DAILY_GOALS, GRID_CONFIG } from './constants';
 import { PathNetwork, pointKey, isConnected, getPathLength } from './pathBuilder';
 import { generateObstacles, type Obstacle } from './obstacles';
 
+//test commit
+
 export interface DailyTotals {
   time: number;
   emissions: number;
