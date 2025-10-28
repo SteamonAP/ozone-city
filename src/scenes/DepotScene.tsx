@@ -50,6 +50,8 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 	const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle, dispatchedVehicles, startNewDay } = useGameState();
 	const [hint, setHint] = useState<Record<string, string[]> | null>(null);
 	const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
+	const isMobile = window.innerWidth <= 768;
+	const [mobileTab, setMobileTab] = useState<'parcels' | 'vehicles'>(isMobile ? 'parcels' : 'parcels');
 
 	const parcelById = useMemo(() => new Map(parcels.map(p => [p.id, p])), [parcels]);
 	const assignedSet = useMemo(() => new Set(vehicles.flatMap(v => v.loadedParcelIds)), [vehicles]);
@@ -101,7 +103,7 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 			padding: '12px', 
 			color: '#fff', 
 			display: 'grid', 
-			gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'minmax(320px, 400px) 1fr', 
+			gridTemplateColumns: isMobile ? '1fr' : 'minmax(340px, 420px) 1fr', 
 			gap: '16px', 
 			background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
 			overflow: 'auto'
@@ -115,7 +117,7 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 					<p style={{ margin: 0, fontSize: window.innerWidth <= 768 ? '11px' : '12px', opacity: 0.8 }}>Optimize delivery routes to reduce carbon emissions while serving schools, hospitals, and homes efficiently.</p>
 				</div>
 
-				<div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+				<div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', position: isMobile ? 'sticky' as const : 'static' as const, top: isMobile ? 0 : undefined, zIndex: 5, background: isMobile ? '#0f172a' : 'transparent', paddingTop: isMobile ? 8 : 0, paddingBottom: isMobile ? 8 : 0 }}>
 					<button onClick={suggest} style={{ 
 						padding: window.innerWidth <= 768 ? '12px 16px' : '8px 12px', 
 						borderRadius: 8, 
@@ -145,10 +147,19 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 						minHeight: window.innerWidth <= 768 ? '48px' : 'auto',
 						fontSize: window.innerWidth <= 768 ? '14px' : '12px'
 					}}>🔄 Reset Day</button>
+
+					{isMobile && (
+						<div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+							<button onClick={() => setMobileTab('parcels')} style={{ padding: '12px 16px', borderRadius: 8, border: 'none', background: mobileTab === 'parcels' ? '#3b82f6' : '#1f2937', color: '#fff' }}>Parcels</button>
+							<button onClick={() => setMobileTab('vehicles')} style={{ padding: '12px 16px', borderRadius: 8, border: 'none', background: mobileTab === 'vehicles' ? '#3b82f6' : '#1f2937', color: '#fff' }}>Vehicles</button>
+						</div>
+					)}
 				</div>
 				
-				<h4 style={{ marginBottom: 12, fontSize: window.innerWidth <= 768 ? '16px' : '18px' }}>📦 Available Deliveries</h4>
-				<div style={{ display: 'grid', gap: 12, maxHeight: window.innerWidth <= 768 ? '300px' : 'none', overflowY: 'auto' }}>
+				{(!isMobile || mobileTab === 'parcels') && (
+					<>
+						<h4 style={{ marginBottom: 12, fontSize: window.innerWidth <= 768 ? '16px' : '18px' }}>📦 Available Deliveries</h4>
+						<div style={{ display: 'grid', gap: 12, maxHeight: isMobile ? '48vh' : 'none', overflowY: 'auto', paddingRight: 4 }}>
 					{unassignedParcels.map((p) => (
 						<div key={p.id}
 							onClick={() => handleParcelTap(p.id)}
@@ -160,10 +171,12 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 								padding: window.innerWidth <= 768 ? '16px' : '12px', 
 								borderRadius: 10, 
 								border: `2px solid ${selectedParcelId === p.id ? '#3b82f6' : p.urgency === 'urgent' ? '#ef4444' : p.urgency === 'normal' ? '#fbbf24' : '#22c55e'}`,
-								minHeight: window.innerWidth <= 768 ? '80px' : 'auto',
+									minHeight: window.innerWidth <= 768 ? '80px' : 'auto',
 								cursor: 'pointer',
 								transform: selectedParcelId === p.id ? 'scale(1.02)' : 'scale(1)',
-								transition: 'all 0.2s ease'
+									transition: 'all 0.2s ease',
+									position: 'relative',
+									zIndex: 1
 							}}>
 							<img src={parcelIcon(p)} alt={`Parcel ${p.id}`} width={window.innerWidth <= 768 ? 48 : 36} height={window.innerWidth <= 768 ? 48 : 36} />
 							<img src={destinationIcon(p.destinationType)} alt={p.destinationType} width={window.innerWidth <= 768 ? 32 : 24} height={window.innerWidth <= 768 ? 32 : 24} />
@@ -179,12 +192,16 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 							</div>
 						</div>
 					))}
-					{unassignedParcels.length === 0 && <div style={{ opacity: 0.8, textAlign: 'center', padding: 20 }}>✅ All parcels assigned!</div>}
-				</div>
+						{unassignedParcels.length === 0 && <div style={{ opacity: 0.8, textAlign: 'center', padding: 20 }}>✅ All parcels assigned!</div>}
+					</div>
+					</>
+				)}
 			</div>
-			<div>
-				<h3 style={{ marginTop: 0 }}>🚛 Vehicles</h3>
-				<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+			<div style={{ position: 'relative' }}>
+				{(!isMobile || mobileTab === 'vehicles') && (
+					<>
+						<h3 style={{ marginTop: 0 }}>🚛 Vehicles</h3>
+						<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', paddingBottom: 12 }}>
 					{vehicles.map((v) => {
 						const used = v.loadedParcelIds.reduce((sum, id) => sum + (parcelById.get(id)?.sizeUnits ?? 0), 0);
 						const canDispatch = used > 0 && !dispatchedVehicles.has(v.id);
@@ -201,7 +218,9 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 									cursor: selectedParcelId ? 'pointer' : 'default',
 									border: selectedParcelId ? '2px solid #3b82f6' : '2px solid transparent',
 									opacity: isDispatched ? 0.6 : 1,
-									transition: 'all 0.2s ease'
+									transition: 'all 0.2s ease',
+									position: 'relative',
+									zIndex: 0
 								}}>
 								<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
 									<img src={vehicleIcon(v)} alt={v.id} width={48} height={48} />
@@ -262,7 +281,9 @@ export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> =
 							</div>
 						);
 					})}
-				</div>
+						</div>
+					</>
+				)}
 			</div>
 		</div>
 	);
