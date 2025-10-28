@@ -12,7 +12,7 @@ import homeIcon from '../../assets/sprites/home.svg';
 
 interface PathGridProps {
   destinations: Point[];
-  onPathComplete: (pathLength: number) => void;
+  onPathComplete: (pathLength: number, deliveredDestinations: Point[]) => void;
 }
 
 export const PathGrid: React.FC<PathGridProps> = ({ destinations, onPathComplete }) => {
@@ -261,16 +261,16 @@ export const PathGrid: React.FC<PathGridProps> = ({ destinations, onPathComplete
 
       <div style={{ display: 'flex', gap: 12 }}>
         <button
-          onClick={() => onPathComplete(pathLength)}
-          disabled={!connectivity.solved}
+          onClick={() => onPathComplete(pathLength, connectedDests)}
+          disabled={connectedDests.length === 0}
           style={{
             padding: '12px 24px',
             borderRadius: 10,
             border: 'none',
-            background: connectivity.solved ? '#22c55e' : '#6b7280',
+            background: connectedDests.length > 0 ? '#22c55e' : '#6b7280',
             color: '#0b1020',
             fontWeight: 700,
-            cursor: connectivity.solved ? 'pointer' : 'not-allowed'
+            cursor: connectedDests.length > 0 ? 'pointer' : 'not-allowed'
           }}
         >
           Submit Route

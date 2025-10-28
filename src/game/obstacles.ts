@@ -19,7 +19,7 @@ export function generateObstacles(seed: number, gridSize: number, depot: Point, 
     return seed / 0x7fffffff;
   };
 
-  const numObstacles = Math.floor(gridSize * gridSize * 0.15); // 15% of grid
+  const numObstacles = Math.floor(gridSize * gridSize * 0.22); // 22% of grid → harder
 
   for (let i = 0; i < numObstacles; i++) {
     let attempts = 0;

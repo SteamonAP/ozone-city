@@ -4,12 +4,12 @@ import { VEHICLE_RATES, DAILY_GOALS, GRID_CONFIG } from './constants';
 import { PathNetwork, pointKey, isConnected, getPathLength } from './pathBuilder';
 import { generateObstacles, type Obstacle } from './obstacles';
 
-//test commit
-
 export interface DailyTotals {
   time: number;
   emissions: number;
 }
+
+//test commit
 
 export interface GameState {
   daySeed: number;
@@ -23,12 +23,13 @@ export interface GameState {
   obstacles: Obstacle[];
   maxPathSegments: number;
   dispatchedVehicles: Set<string>; // Track which vehicles have been dispatched
+  deliveredParcelIds: Set<string>; // Track delivered parcels
   startNewDay: (seed?: number) => void;
   setTutorialDone: () => void;
   assignParcelToVehicle: (parcelId: string, vehicleId: string) => void;
   removeParcelFromVehicle: (parcelId: string, vehicleId: string) => void;
   dispatchVehicle: (vehicleId: string) => void;
-  recordTrip: (vehicleId: string, pathLength: number) => void;
+  recordTrip: (vehicleId: string, pathLength: number, deliveredDestinations: { x: number; y: number }[]) => void;
   setCurrentPath: (path: PathNetwork) => void;
   checkConnectivity: (destinations: { x: number; y: number }[]) => { connected: number; total: number; solved: boolean };
   isDayComplete: () => boolean;
@@ -56,6 +57,7 @@ export const useGameState = create<GameState>((set, get) => ({
   obstacles: [],
   maxPathSegments: 25,
   dispatchedVehicles: new Set(),
+  deliveredParcelIds: new Set(),
   startNewDay: (seed = Math.floor(Math.random() * 1_000_000)) => {
     // Placeholder parcel generation; will be replaced by generator.ts
     const parcels: Parcel[] = Array.from({ length: 5 }).map((_, i) => {
@@ -72,7 +74,7 @@ export const useGameState = create<GameState>((set, get) => ({
       };
     });
     const obstacles = generateObstacles(seed, GRID_CONFIG.cols, GRID_CONFIG.depot, parcels.map(p => p.destination));
-    const maxSegments = 20 + Math.floor((seed % 10)); // 20-29 segments based on difficulty
+    const maxSegments = 14 + Math.floor((seed % 8)); // 14-21 segments → harder
     set({ 
       daySeed: seed, 
       parcels, 
@@ -81,7 +83,8 @@ export const useGameState = create<GameState>((set, get) => ({
       currentPath: { segments: [], cells: new Set() },
       obstacles,
       maxPathSegments: maxSegments,
-      dispatchedVehicles: new Set()
+      dispatchedVehicles: new Set(),
+      deliveredParcelIds: new Set()
     });
   },
   setTutorialDone: () => set({ tutorialDone: true }),
@@ -117,18 +120,44 @@ export const useGameState = create<GameState>((set, get) => ({
     
     return { dispatchedVehicles: newDispatched };
   }),
-  recordTrip: (vehicleId, pathLength) => set((state) => {
+  recordTrip: (vehicleId, pathLength, deliveredDestinations) => set((state) => {
     const vehicle = state.vehicles.find(v => v.id === vehicleId);
     if (!vehicle) return {} as any;
     const rate = VEHICLE_RATES[vehicle.type as VehicleType];
+
+    // Determine which parcels were delivered on this trip by matching destinations
+    const deliveredIds: string[] = [];
+    for (const pid of vehicle.loadedParcelIds) {
+      const parcel = state.parcels.find(p => p.id === pid);
+      if (!parcel) continue;
+      if (deliveredDestinations.some(d => d.x === parcel.destination.x && d.y === parcel.destination.y)) {
+        deliveredIds.push(pid);
+      }
+    }
+
+    // Remove delivered parcels from vehicle; free capacity
+    const updatedVehicles = state.vehicles.map(v => {
+      if (v.id !== vehicleId) return v;
+      return { ...v, loadedParcelIds: v.loadedParcelIds.filter(id => !deliveredIds.includes(id)) };
+    });
+
+    // Update delivered set
+    const deliveredSet = new Set(state.deliveredParcelIds);
+    deliveredIds.forEach(id => deliveredSet.add(id));
     
-    // Clear the path for next trip
+    // Clear the path for next trip and allow vehicle to be dispatched again
+    const dispatched = new Set(state.dispatchedVehicles);
+    dispatched.delete(vehicleId);
+
     return {
       totals: {
         time: state.totals.time + pathLength * rate.timePerTile,
         emissions: state.totals.emissions + pathLength * rate.emissionPerTile
       },
-      currentPath: { segments: [], cells: new Set() }
+      currentPath: { segments: [], cells: new Set() },
+      vehicles: updatedVehicles,
+      deliveredParcelIds: deliveredSet,
+      dispatchedVehicles: dispatched
     };
   }),
   setCurrentPath: (path) => set({ currentPath: path }),
@@ -143,12 +172,7 @@ export const useGameState = create<GameState>((set, get) => ({
   },
   isDayComplete: () => {
     const state = get();
-    // Day is complete when all parcels have been delivered (assigned AND dispatched)
-    const allParcelsDelivered = state.parcels.every(p => {
-      const assignedVehicle = state.vehicles.find(v => v.loadedParcelIds.includes(p.id));
-      return assignedVehicle && state.dispatchedVehicles.has(assignedVehicle.id);
-    });
-    return allParcelsDelivered;
+    return state.deliveredParcelIds.size >= state.parcels.length;
   },
   getUndispatchedVehicles: () => {
     const state = get();

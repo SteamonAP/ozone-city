@@ -46,14 +46,14 @@ function getSDGMessage(type: string, urgency: string) {
 // --- End Helper functions ---
 
 export const DepotScene: React.FC<{ onDispatch: (vehicleId: string) => void }> = ({ onDispatch }) => {
-    const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle, dispatchedVehicles, startNewDay } = useGameState();
-    const [hint, setHint] = useState<Record<string, string[]> | null>(null);
-    const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
-    const isMobile = window.innerWidth <= 768;
+	const { parcels, vehicles, assignParcelToVehicle, removeParcelFromVehicle, dispatchedVehicles, startNewDay, deliveredParcelIds } = useGameState();
+	const [hint, setHint] = useState<Record<string, string[]> | null>(null);
+	const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
+	const isMobile = window.innerWidth <= 768;
 
-    const parcelById = useMemo(() => new Map(parcels.map(p => [p.id, p])), [parcels]);
-    const assignedSet = useMemo(() => new Set(vehicles.flatMap(v => v.loadedParcelIds)), [vehicles]);
-    const unassignedParcels = useMemo(() => parcels.filter(p => !assignedSet.has(p.id)), [parcels, assignedSet]);
+	const parcelById = useMemo(() => new Map(parcels.map(p => [p.id, p])), [parcels]);
+	const assignedSet = useMemo(() => new Set(vehicles.flatMap(v => v.loadedParcelIds)), [vehicles]);
+	const unassignedParcels = useMemo(() => parcels.filter(p => !assignedSet.has(p.id) && !deliveredParcelIds.has(p.id)), [parcels, assignedSet, deliveredParcelIds]);
 
     const handleParcelTap = (parcelId: string) => {
         setSelectedParcelId(selectedParcelId === parcelId ? null : parcelId);

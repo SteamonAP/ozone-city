@@ -4,7 +4,7 @@ import { computeTripCost } from '../game/costs';
 import { useGameState } from '../game/gameState';
 import { DAILY_GOALS } from '../game/constants';
 
-export const RouteScene: React.FC<{ vehicleId: string; destinations: { x: number; y: number }[]; onSubmit: (pathLength: number) => void; }> = ({ vehicleId, destinations, onSubmit }) => {
+export const RouteScene: React.FC<{ vehicleId: string; destinations: { x: number; y: number }[]; onSubmit: (pathLength: number, delivered: { x: number; y: number }[]) => void; }> = ({ vehicleId, destinations, onSubmit }) => {
 	const { vehicles, totals, currentPath } = useGameState();
 	const vehicleType = vehicles.find(v => v.id === vehicleId)?.type ?? 'auto';
 
@@ -68,8 +68,8 @@ export const RouteScene: React.FC<{ vehicleId: string; destinations: { x: number
 				</div>
 			</div>
 			
-			<div style={{ minHeight: 0, overflow: 'auto' }}>
-				<PathGrid destinations={destinations} onPathComplete={onSubmit} />
+            <div style={{ minHeight: 0, overflow: 'auto' }}>
+                <PathGrid destinations={destinations} onPathComplete={(len, delivered) => onSubmit(len, delivered)} />
 			</div>
 		</div>
 	);

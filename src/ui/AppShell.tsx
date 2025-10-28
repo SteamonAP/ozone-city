@@ -65,11 +65,11 @@ export const AppShell: React.FC = () => {
 			)}
 
 			{stage === 'route' && currentVehicleId && (
-				<RouteOverlay
+                <RouteOverlay
 					vehicleId={currentVehicleId}
 					destinations={activeDestinations}
-					onSubmit={(pathLength) => {
-						recordTrip(currentVehicleId, pathLength);
+                    onSubmit={(pathLength, delivered) => {
+                        recordTrip(currentVehicleId, pathLength, delivered);
 						
 						// Check if day is complete or if there are more vehicles to dispatch
 						if (isDayComplete()) {
